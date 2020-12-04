@@ -4,8 +4,10 @@
 #define SENSE A1
 
 SoftwareSerial Esp(10,11); 
-
+//LCD
+boolean alertaLCD=false;
 LiquidCrystal_I2C lcd(0x27,16,2); //0x20 o 0x27
+
 //SensorUltraSonico
 const int TriggerPin=4;
 const int EchoPin=5;
@@ -22,6 +24,7 @@ int contAlertas=0;
 boolean OjoCerrado=false;
 boolean Sonico=false;
 boolean Temporizador=false;
+
   
 int pulso=0;
 void setup() {
@@ -55,7 +58,7 @@ void loop() {
 
   //Parpadeo
   if(!digitalRead(SENSE)){
-    if(OjoCerrado==false){
+    if(OjoCerrado==false && Temporizador==false){
       OjoCerrado=true;
       OjoTp=millis();
     }
@@ -63,13 +66,26 @@ void loop() {
       Temporizador=true;
       Sonico=false;//Para que lo apague el Sensor Sonico
       digitalWrite(8, HIGH);
+      digitalWrite(12, HIGH);
       contAlertas+=1;
+      //Mostrar Alerta Simple en LCD
+      alertaLCD=true;
+      lcd.clear();
+      lcd.setCursor(2,0);
+      lcd.print("Alerta Simple");
+      lcd.setCursor(1,1);
+      lcd.print("Favor Despertar");
+      
     }
   }
-  else if(Sonico==true){
+  else if(Sonico==true && Temporizador==true){
     OjoCerrado=false; //Ya habrio el Ojo
-    Temporizador=false;
     digitalWrite(8, LOW);
+    digitalWrite(12, LOW);
+    Temporizador=false;
+    //Quitamos el Mensaje De Alerta
+    alertaLCD=false;
+    lcd.clear();
   }
   
   //Tacometro
@@ -89,43 +105,36 @@ void loop() {
   long Distancia_cm=Duracion / 58.2;
   if(Distancia_cm<10){
     Sonico=true;
+  }else{
+    Distancia_cm=0;
   }
   
 
   //Pulso
   pulso=analogRead(A0);
-  if(pulso>=365){
-    digitalWrite(12,HIGH);
-    delay(30);
-    digitalWrite(12,LOW);
-  }
-  delay(130);
-
-
-
+  
   //LCD
-  //Serial.println(pulso);
-  lcd.setCursor(0,0);
-  lcd.print("Pulso|Sonic|Ale ");
-  lcd.setCursor(0,1);
-  lcd.print(pulso);
-  lcd.setCursor(6,1);
-  lcd.print(Distancia_cm);
-  lcd.setCursor(4,1);
-  if(boleanoTacometro==1){
-    lcd.print("T");
-    Serial.print(" T");
-    
-  }else{
-    lcd.print("F");
+  if(alertaLCD==false){
+    lcd.setCursor(0,0);
+    lcd.print("Pulso|Sonic|Ale ");
+    lcd.setCursor(0,1);
+    lcd.print(pulso);
+    lcd.setCursor(6,1);
+    lcd.print(Distancia_cm);
+    lcd.setCursor(4,1);
+    if(boleanoTacometro==1){
+      lcd.print("T");
+    }else{
+      lcd.print("F");
+    }
+    lcd.setCursor(12,1);
+    lcd.print(contAlertas);
   }
-  lcd.setCursor(12,1);
-  lcd.print(contAlertas);
-
   
   //Comunicacion Esp
   Esp.print(pulso);
   Esp.print("\n");
+  delay(300);
 
 }
 
