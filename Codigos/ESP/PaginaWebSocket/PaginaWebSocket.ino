@@ -1,21 +1,19 @@
-#include<SoftwareSerial.h>
-#include<ESP8266WiFi.h>
+#include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
 #include <WebSocketsServer.h>
 #include <Ticker.h>
 
-//Pagina y web Socket Esp8266
 void getData();
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length);
+
 Ticker timer;
 int randomNum;
 char * ssid = "PepiNemo";
 char * password = "f6625438";
+
 ESP8266WebServer server;
+
 WebSocketsServer webSocket = WebSocketsServer(81);
-
-
-//-------------------------------------------Pagina Web----------------------------
 
 char webpage[] PROGMEM = R"=====(
 <html>
@@ -26,9 +24,13 @@ char webpage[] PROGMEM = R"=====(
 
 
 <!---- Adding a slider for controlling date rate--------->
+<div>
+  <input type="range" min="1" max="10" value="5" id="dataRateSlider" oninput="sendDataRate()" />
+  <label for="dataRateSlider" id="dataRateLabel"> Rate: 0.2hz</label>
+</div>
 <hr/>
 <div>
-  <canvas id = "line-chart" width="700" height ="300"></canvas>
+  <canvas id = "line-chart" width="800" height ="450"></canvas>
 </div>
 
 <body onload = "javascript:init()">
@@ -69,13 +71,18 @@ char webpage[] PROGMEM = R"=====(
         console.log(data);
     }
   }
+  function sendDataRate(){
+    var dataRate=document.getElementById("dataRateSlider").value;
+    webSocket.send(dataRate);
+    dataRate=1.0/dataRate;
+    document.getElementById("dataRateLabel").innerHTML = "Rate: " + dataRate.toFixed(2)+"Hz";
+    
+  }
 
 </script>
 </body>
 </html>
 )=====";
-
-//--------------------------------------------------------------------------------
 
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length){
   if(type == WStype_TEXT){
@@ -86,7 +93,8 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
 }
 
 
-void setup() {
+void setup(){
+  // put your setup code here, to run once:
   WiFi.begin(ssid, password);
   Serial.begin(9600);
   while(WiFi.status()!=WL_CONNECTED){
@@ -105,39 +113,21 @@ void setup() {
   webSocket.begin();
   
   webSocket.onEvent(webSocketEvent);
-  timer.attach(0.3,getData);
-  
+  timer.attach(5,getData);
 }
 
 void loop() {
+  // put your main code here, to run repeatedly:
   webSocket.loop();
   server.handleClient();
-  boolean wh=true;
- 
-
   
 }
 void getData(){
-  //Leer el dato del sensor
-  if(Serial.available()){
-    float val=Serial.parseInt();
-    if(Serial.read()=='\n'){
-      String json = "{\"value\":";
-      String rn = (String) val;
-      json +=rn;
-      json += "}";
-      webSocket.broadcastTXT(json.c_str(), json.length());  
-    }
-  }
-  else{
-    float val=300;
-    String json = "{\"value\":";
-    String rn = (String) val;
-    json +=rn;
-    json += "}";
-    webSocket.broadcastTXT(json.c_str(), json.length());
-  }
-  //delay(300);
+  randomNum = random(300,400);
+  Serial.println(randomNum);
+  String json = "{\"value\":";
+  String rn = (String) randomNum;
+  json +=rn;
+  json += "}";
+  webSocket.broadcastTXT(json.c_str(), json.length());  
 }
-
-  
